@@ -29,6 +29,7 @@ stages:
       - src/train.py
       - src/common.py
       - data/processed/train.csv
+      - data/feedback/feedback.csv
     params:
       - train
       - base.random_state
@@ -66,3 +67,12 @@ stages:
     outs:
       - reports/registry.json:
           cache: false
+
+  export:
+    # Copies champion (+ canary) from the registry into the folder the API image uses
+    cmd: python src/export_model.py
+    deps:
+      - src/export_model.py
+      - reports/registry.json
+    outs:
+      - models/serving

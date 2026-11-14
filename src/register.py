@@ -1,9 +1,11 @@
 """Stage 5: register the best model in the MLflow Model Registry.
 
 Every pipeline run creates a new version of `leadiq-classifier`, tagged with
-its model type, metrics and data version. The `champion` alias moves to the
-new version only if it beats the current champion's test ROC-AUC; otherwise
-the new version gets the `challenger` alias.
+its model type, metrics and data version. Aliases decide what is served:
+- no champion yet       -> the new version becomes `champion`
+- beats the champion    -> `canary` (gets a small share of live traffic;
+                           src/promote.py makes it champion later)
+- not better            -> `challenger` (kept for the record, not served)
 """
 import mlflow
 from mlflow import MlflowClient
@@ -43,12 +45,16 @@ def main() -> None:
     except Exception:
         champ, champ_auc = None, -1.0
 
-    if test_metrics["test_roc_auc"] > champ_auc:
+    if champ is None:
         client.set_registered_model_alias(name, "champion", mv.version)
-        decision = "promoted to champion"
+        decision = "first model, promoted to champion"
+    elif test_metrics["test_roc_auc"] > champ_auc:
+        # Better models are not trusted blindly: they go to canary first
+        client.set_registered_model_alias(name, "canary", mv.version)
+        decision = f"better than champion v{champ.version}, sent to canary"
     else:
         client.set_registered_model_alias(name, "challenger", mv.version)
-        decision = f"kept as challenger (champion v{champ.version} is better)"
+        decision = f"kept as challenger (not better than champion v{champ.version})"
 
     client.set_model_version_tag(name, mv.version, "decision", decision)
     write_json(

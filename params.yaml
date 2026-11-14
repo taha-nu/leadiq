@@ -5,6 +5,8 @@ base:
 data:
   raw: data/raw/leads.csv
   processed_dir: data/processed
+  # Leads labelled by sales reps in the app (filled by the retraining flow)
+  feedback: data/feedback/feedback.csv
 
 preprocess:
   test_size: 0.2
@@ -50,6 +52,16 @@ evaluate:
   # Score bands used by the sales team
   hot_threshold: 0.7
   warm_threshold: 0.4
+
+canary:
+  # Live leads the canary must score before src/promote.py makes it champion
+  min_requests: 50
+
+retrain:
+  # The flow retrains when this many new labelled leads arrive, or when drift is found
+  min_new_feedback: 50
+  # Share of drifted columns that counts as data drift
+  drift_share: 0.3
 
 mlflow:
   tracking_uri: sqlite:///mlflow.db

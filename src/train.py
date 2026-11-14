@@ -59,12 +59,20 @@ def main() -> None:
 
     train_path = f"{params['data']['processed_dir']}/train.csv"
     train = pd.read_csv(ROOT / train_path)
+
+    # Add leads that sales reps labelled through the app (feedback loop)
+    feedback = pd.read_csv(ROOT / params["data"]["feedback"])
+    if len(feedback):
+        train = pd.concat([train, feedback[train.columns]], ignore_index=True)
+    print(f"Training on {len(train)} rows ({len(feedback)} from rep feedback)")
     X, y = train.drop(columns=[target]), train[target]
     cv = StratifiedKFold(n_splits=tcfg["cv_folds"], shuffle=True, random_state=seed)
     metric = tcfg["selection_metric"]
 
     common_tags = {
         "train_data_md5": file_md5(train_path),
+        "feedback_data_md5": file_md5(params["data"]["feedback"]),
+        "feedback_rows": str(len(feedback)),
         "raw_data_md5": file_md5(params["data"]["raw"]),
         "git_commit": git_commit(),
     }
