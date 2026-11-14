@@ -1,0 +1,11 @@
+{
+  "model_name": "leadiq-classifier",
+  "version": 1,
+  "decision": "promoted to champion",
+  "model_type": "xgboost",
+  "test_roc_auc": 0.8903,
+  "test_f1": 0.7659,
+  "raw_data_md5": "d5f1b7416212227d47e01ad57b88241a",
+  "train_data_md5": "38d6f549e6796d5d952449f4671db600",
+  "git_commit": "uncommitted"
+}

@@ -1,0 +1,178 @@
+schema: '2.0'
+stages:
+  validate:
+    cmd: python src/validate.py
+    deps:
+    - path: data/raw/leads.csv
+      hash: md5
+      md5: d5f1b7416212227d47e01ad57b88241a
+      size: 2368803
+    - path: src/validate.py
+      hash: md5
+      md5: 852e5fa4c3c702d54b5331e665cb56d0
+      size: 1943
+    outs:
+    - path: reports/validation.json
+      hash: md5
+      md5: acff1c18d83d527dd1f923fa15bbbed8
+      size: 165
+  preprocess:
+    cmd: python src/preprocess.py
+    deps:
+    - path: data/raw/leads.csv
+      hash: md5
+      md5: d5f1b7416212227d47e01ad57b88241a
+      size: 2368803
+    - path: reports/validation.json
+      hash: md5
+      md5: acff1c18d83d527dd1f923fa15bbbed8
+      size: 165
+    - path: src/preprocess.py
+      hash: md5
+      md5: ce04dbbdbcb257863d4c2c4dc8de5702
+      size: 2713
+    params:
+      params.yaml:
+        base:
+          random_state: 42
+          target: Converted
+        preprocess:
+          test_size: 0.2
+          max_missing_ratio: 0.4
+          rare_category_threshold: 0.01
+          drop_columns:
+          - Prospect ID
+          - Lead Number
+          - Tags
+          - Lead Quality
+          - Lead Profile
+          - Last Notable Activity
+          - Asymmetrique Activity Index
+          - Asymmetrique Profile Index
+          - Asymmetrique Activity Score
+          - Asymmetrique Profile Score
+          - Magazine
+          - Receive More Updates About Our Courses
+          - Update me on Supply Chain Content
+          - Get updates on DM Content
+          - I agree to pay the amount through cheque
+    outs:
+    - path: data/processed/test.csv
+      hash: md5
+      md5: 8afeacd88634cb83a8d70d32e4f9b43c
+      size: 256561
+    - path: data/processed/train.csv
+      hash: md5
+      md5: 38d6f549e6796d5d952449f4671db600
+      size: 1026125
+    - path: reports/preprocess.json
+      hash: md5
+      md5: 2ce9046b4d1ea68ce61aac2abd2ab2c3
+      size: 599
+  train:
+    cmd: python src/train.py
+    deps:
+    - path: data/processed/train.csv
+      hash: md5
+      md5: 38d6f549e6796d5d952449f4671db600
+      size: 1026125
+    - path: src/common.py
+      hash: md5
+      md5: bf09a779ec36ce199e6592a3db87d249
+      size: 1333
+    - path: src/train.py
+      hash: md5
+      md5: f4846cb6cc16fd6f963970b8651b7e93
+      size: 5693
+    params:
+      params.yaml:
+        base.random_state: 42
+        train:
+          cv_folds: 5
+          selection_metric: roc_auc
+          models:
+            logistic_regression:
+            - C: 0.1
+              max_iter: 1000
+            - C: 1.0
+              max_iter: 1000
+            xgboost:
+            - n_estimators: 200
+              max_depth: 3
+              learning_rate: 0.1
+            - n_estimators: 300
+              max_depth: 5
+              learning_rate: 0.05
+            lightgbm:
+            - n_estimators: 200
+              num_leaves: 15
+              learning_rate: 0.1
+            - n_estimators: 300
+              num_leaves: 31
+              learning_rate: 0.05
+    outs:
+    - path: models/model.joblib
+      hash: md5
+      md5: 6aa7f2f8ed621d491732e73e3b4e45b9
+      size: 243200
+    - path: reports/train.json
+      hash: md5
+      md5: a34d27ca09560153f3e82bfcf5d3c2c0
+      size: 3167
+  evaluate:
+    cmd: python src/evaluate.py
+    deps:
+    - path: data/processed/test.csv
+      hash: md5
+      md5: 8afeacd88634cb83a8d70d32e4f9b43c
+      size: 256561
+    - path: models/model.joblib
+      hash: md5
+      md5: 6aa7f2f8ed621d491732e73e3b4e45b9
+      size: 243200
+    - path: reports/train.json
+      hash: md5
+      md5: a34d27ca09560153f3e82bfcf5d3c2c0
+      size: 3167
+    - path: src/evaluate.py
+      hash: md5
+      md5: 001400c85f0e068e1754b96df7980395
+      size: 3397
+    params:
+      params.yaml:
+        evaluate:
+          hot_threshold: 0.7
+          warm_threshold: 0.4
+    outs:
+    - path: metrics/test_metrics.json
+      hash: md5
+      md5: e869d62ef870faf7f5bbebb333da6911
+      size: 239
+    - path: reports/plots/roc_curve.png
+      hash: md5
+      md5: 858155c5c1aa93cf3301855253b70ddf
+      size: 33918
+    - path: reports/plots/shap_importance.png
+      hash: md5
+      md5: d3bc0728eb6b19cc679c92db2439a6fa
+      size: 63959
+  register:
+    cmd: python src/register.py
+    deps:
+    - path: metrics/test_metrics.json
+      hash: md5
+      md5: e869d62ef870faf7f5bbebb333da6911
+      size: 239
+    - path: models/model.joblib
+      hash: md5
+      md5: 6aa7f2f8ed621d491732e73e3b4e45b9
+      size: 243200
+    - path: src/register.py
+      hash: md5
+      md5: 2c7b6176f5c7ec2660882e8712696e92
+      size: 2315
+    outs:
+    - path: reports/registry.json
+      hash: md5
+      md5: abc33fba70b429d37583e81b33b20578
+      size: 318

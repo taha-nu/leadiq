@@ -1,0 +1,68 @@
+stages:
+  validate:
+    cmd: python src/validate.py
+    deps:
+      - src/validate.py
+      - data/raw/leads.csv
+    outs:
+      - reports/validation.json:
+          cache: false
+
+  preprocess:
+    cmd: python src/preprocess.py
+    deps:
+      - src/preprocess.py
+      - data/raw/leads.csv
+      - reports/validation.json
+    params:
+      - preprocess
+      - base
+    outs:
+      - data/processed/train.csv
+      - data/processed/test.csv
+      - reports/preprocess.json:
+          cache: false
+
+  train:
+    cmd: python src/train.py
+    deps:
+      - src/train.py
+      - src/common.py
+      - data/processed/train.csv
+    params:
+      - train
+      - base.random_state
+    outs:
+      - models/model.joblib
+      - reports/train.json:
+          cache: false
+
+  evaluate:
+    cmd: python src/evaluate.py
+    deps:
+      - src/evaluate.py
+      - models/model.joblib
+      - data/processed/test.csv
+      - reports/train.json
+    params:
+      - evaluate
+    metrics:
+      - metrics/test_metrics.json:
+          cache: false
+    plots:
+      - reports/plots/roc_curve.png:
+          cache: false
+      - reports/plots/shap_importance.png:
+          cache: false
+
+  register:
+    cmd: python src/register.py
+    # Always runs, so every machine's MLflow registry gets the model
+    always_changed: true
+    deps:
+      - src/register.py
+      - models/model.joblib
+      - metrics/test_metrics.json
+    outs:
+      - reports/registry.json:
+          cache: false

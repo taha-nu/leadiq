@@ -1,0 +1,57 @@
+base:
+  random_state: 42
+  target: Converted
+
+data:
+  raw: data/raw/leads.csv
+  processed_dir: data/processed
+
+preprocess:
+  test_size: 0.2
+  # Columns with more missing values than this share are dropped
+  max_missing_ratio: 0.4
+  # Categories rarer than this share are grouped into "Other"
+  rare_category_threshold: 0.01
+  # IDs, columns filled in by the sales team AFTER contact (target leakage),
+  # and near-constant columns
+  drop_columns:
+    - Prospect ID
+    - Lead Number
+    - Tags
+    - Lead Quality
+    - Lead Profile
+    - Last Notable Activity
+    - Asymmetrique Activity Index
+    - Asymmetrique Profile Index
+    - Asymmetrique Activity Score
+    - Asymmetrique Profile Score
+    - Magazine
+    - Receive More Updates About Our Courses
+    - Update me on Supply Chain Content
+    - Get updates on DM Content
+    - I agree to pay the amount through cheque
+
+train:
+  cv_folds: 5
+  # Metric used to pick the best candidate (cross-validated on the train set only)
+  selection_metric: roc_auc
+  models:
+    logistic_regression:
+      - {C: 0.1, max_iter: 1000}
+      - {C: 1.0, max_iter: 1000}
+    xgboost:
+      - {n_estimators: 200, max_depth: 3, learning_rate: 0.1}
+      - {n_estimators: 300, max_depth: 5, learning_rate: 0.05}
+    lightgbm:
+      - {n_estimators: 200, num_leaves: 15, learning_rate: 0.1}
+      - {n_estimators: 300, num_leaves: 31, learning_rate: 0.05}
+
+evaluate:
+  # Score bands used by the sales team
+  hot_threshold: 0.7
+  warm_threshold: 0.4
+
+mlflow:
+  tracking_uri: sqlite:///mlflow.db
+  experiment_name: leadiq-lead-scoring
+  registered_model_name: leadiq-classifier

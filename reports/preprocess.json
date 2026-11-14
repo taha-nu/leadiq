@@ -1,0 +1,26 @@
+{
+  "rows_train": 7392,
+  "rows_test": 1848,
+  "features": [
+    "lead_origin",
+    "lead_source",
+    "do_not_email",
+    "do_not_call",
+    "totalvisits",
+    "total_time_spent_on_website",
+    "page_views_per_visit",
+    "last_activity",
+    "country",
+    "specialization",
+    "what_is_your_current_occupation",
+    "what_matters_most_to_you_in_choosing_a_course",
+    "search",
+    "newspaper_article",
+    "x_education_forums",
+    "newspaper",
+    "digital_advertisement",
+    "through_recommendations",
+    "city",
+    "a_free_copy_of_mastering_the_interview"
+  ]
+}

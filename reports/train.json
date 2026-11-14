@@ -1,0 +1,108 @@
+{
+  "parent_run_id": "c8524a8ca6ee48fc86cd1fa895c34ede",
+  "best": {
+    "run_id": "cf7a214e65434a298d40a4edadd1dcfb",
+    "run_name": "xgboost-1",
+    "model_type": "xgboost",
+    "params": {
+      "n_estimators": 200,
+      "max_depth": 3,
+      "learning_rate": 0.1
+    },
+    "cv_roc_auc": 0.9077428375964228,
+    "cv_accuracy": 0.8342798273711987,
+    "cv_precision": 0.7942559465447407,
+    "cv_recall": 0.7693879690438752,
+    "cv_f1": 0.7815889025877378
+  },
+  "leaderboard": [
+    {
+      "run_id": "cf7a214e65434a298d40a4edadd1dcfb",
+      "run_name": "xgboost-1",
+      "model_type": "xgboost",
+      "params": {
+        "n_estimators": 200,
+        "max_depth": 3,
+        "learning_rate": 0.1
+      },
+      "cv_roc_auc": 0.9077428375964228,
+      "cv_accuracy": 0.8342798273711987,
+      "cv_precision": 0.7942559465447407,
+      "cv_recall": 0.7693879690438752,
+      "cv_f1": 0.7815889025877378
+    },
+    {
+      "run_id": "8c658765677e4520bead7bc13759e8bc",
+      "run_name": "xgboost-2",
+      "model_type": "xgboost",
+      "params": {
+        "n_estimators": 300,
+        "max_depth": 5,
+        "learning_rate": 0.05
+      },
+      "cv_roc_auc": 0.9059930845067063,
+      "cv_accuracy": 0.8314386983854248,
+      "cv_precision": 0.7890369253006212,
+      "cv_recall": 0.7683378040884284,
+      "cv_f1": 0.7784881911995812
+    },
+    {
+      "run_id": "d1c9e0315c004203a7a8cf4df9988d80",
+      "run_name": "lightgbm-1",
+      "model_type": "lightgbm",
+      "params": {
+        "n_estimators": 200,
+        "num_leaves": 15,
+        "learning_rate": 0.1
+      },
+      "cv_roc_auc": 0.904730198877165,
+      "cv_accuracy": 0.8287327044111471,
+      "cv_precision": 0.7873898576767553,
+      "cv_recall": 0.7613171769494034,
+      "cv_f1": 0.7741071598737246
+    },
+    {
+      "run_id": "6aa95630600a4c0a944d744176879fb9",
+      "run_name": "lightgbm-2",
+      "model_type": "lightgbm",
+      "params": {
+        "n_estimators": 300,
+        "num_leaves": 31,
+        "learning_rate": 0.05
+      },
+      "cv_roc_auc": 0.901970235618885,
+      "cv_accuracy": 0.8303559714212781,
+      "cv_precision": 0.7904344880568677,
+      "cv_recall": 0.7620232479264946,
+      "cv_f1": 0.7759324604941739
+    },
+    {
+      "run_id": "0cefa932915e4ec8909f995394eb1e52",
+      "run_name": "logistic_regression-2",
+      "model_type": "logistic_regression",
+      "params": {
+        "C": 1.0,
+        "max_iter": 1000
+      },
+      "cv_roc_auc": 0.8984024004055176,
+      "cv_accuracy": 0.8242684914010401,
+      "cv_precision": 0.7987111861246089,
+      "cv_recall": 0.7276163167144575,
+      "cv_f1": 0.7614758170706937
+    },
+    {
+      "run_id": "144dcb4adc004bd9aa2d1cd71b6c2d23",
+      "run_name": "logistic_regression-1",
+      "model_type": "logistic_regression",
+      "params": {
+        "C": 0.1,
+        "max_iter": 1000
+      },
+      "cv_roc_auc": 0.8978466929781721,
+      "cv_accuracy": 0.8258922158756647,
+      "cv_precision": 0.8028694598473859,
+      "cv_recall": 0.7269151789843677,
+      "cv_f1": 0.7629683626386528
+    }
+  ]
+}

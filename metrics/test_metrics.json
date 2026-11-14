@@ -1,0 +1,10 @@
+{
+  "test_roc_auc": 0.8903,
+  "test_accuracy": 0.8203,
+  "test_precision": 0.7691,
+  "test_recall": 0.7626,
+  "test_f1": 0.7659,
+  "conversion_rate_hot": 0.8196,
+  "conversion_rate_warm": 0.5955,
+  "conversion_rate_cold": 0.1261
+}

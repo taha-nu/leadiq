@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# MLflow local tracking store (each machine has its own; see README)
+mlflow.db
+mlruns/
+
+# DVC-managed outputs are ignored automatically via the .gitignore files DVC creates
