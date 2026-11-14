@@ -9,13 +9,35 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
       - run: pip install -r requirements.txt
-      - name: Unit tests
+      - name: Unit tests (cleaning logic + API)
         run: pytest -q
       - name: Check the DVC pipeline definition
         run: dvc dag
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      # The API image is built in CD, where the trained models are pulled from S3
+      - name: Build dashboard image
+        run: docker build -f docker/dashboard.Dockerfile -t leadiq-dashboard:ci .
+      - name: Check docker-compose file
+        run: docker compose config --quiet
+
+  terraform:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/terraform
+    steps:
+      - uses: actions/checkout@v5
+      - uses: hashicorp/setup-terraform@v3
+      - run: terraform fmt -check
+      - run: terraform init -backend=false
+      - run: terraform validate

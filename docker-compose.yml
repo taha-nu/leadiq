@@ -1,0 +1,42 @@
+# Full LeadIQ stack on one machine:
+#   docker compose up --build
+# API http://localhost:8000/docs | Dashboard http://localhost:8501
+# Prometheus http://localhost:9090 | Grafana http://localhost:3000 (admin / admin)
+# If a port is taken on your machine: API_PORT=8010 docker compose up
+services:
+  api:
+    build: {context: ., dockerfile: docker/api.Dockerfile}
+    ports: ["${API_PORT:-8000}:8000"]
+    environment:
+      CANARY_WEIGHT: "0.1"
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}   # optional, read from .env
+    volumes:
+      - app-data:/app/data   # keeps predictions and feedback between restarts
+
+  dashboard:
+    build: {context: ., dockerfile: docker/dashboard.Dockerfile}
+    ports: ["8501:8501"]
+    environment:
+      API_URL: http://api:8000
+    depends_on: [api]
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    ports: ["9090:9090"]
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+    depends_on: [api]
+
+  grafana:
+    image: grafana/grafana:12.1.1
+    ports: ["3000:3000"]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on: [prometheus]
+
+volumes:
+  app-data:

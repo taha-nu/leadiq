@@ -1,0 +1,59 @@
+name: CD
+
+# Runs after CI passes on main (or by hand). Builds both images, pushes them
+# to ECR and rolls out the ECS service.
+# Needs: repo variable DEPLOY_ENABLED=true and secret AWS_DEPLOY_ROLE_ARN
+# (from `terraform output github_deploy_role_arn`).
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write   # lets GitHub log in to AWS with OIDC (no stored keys)
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  PROJECT: leadiq
+
+jobs:
+  deploy:
+    if: vars.DEPLOY_ENABLED == 'true' && (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Pull the exported models from the DVC remote (S3)
+        run: |
+          pip install "dvc[s3]==3.67.1"
+          dvc pull export
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push images
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          TAG: ${{ github.sha }}
+        run: |
+          for svc in api dashboard; do
+            docker build -f docker/$svc.Dockerfile -t $REGISTRY/$PROJECT-$svc:$TAG -t $REGISTRY/$PROJECT-$svc:latest .
+            docker push --all-tags $REGISTRY/$PROJECT-$svc
+          done
+
+      - name: Deploy to ECS
+        run: |
+          aws ecs update-service --cluster $PROJECT --service $PROJECT --force-new-deployment > /dev/null
+          aws ecs wait services-stable --cluster $PROJECT --services $PROJECT
+          echo "Deployed ${{ github.sha }}"

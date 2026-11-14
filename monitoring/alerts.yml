@@ -1,0 +1,39 @@
+groups:
+  - name: leadiq
+    rules:
+      - alert: ApiDown
+        expr: up{job="leadiq-api"} == 0
+        for: 1m
+        labels: {severity: critical}
+        annotations:
+          summary: "LeadIQ API is not responding"
+
+      - alert: HighErrorRate
+        # More than 5% of requests failed (5xx) over the last 5 minutes
+        expr: |
+          sum(rate(leadiq_requests_total{status=~"5.."}[5m]))
+            / sum(rate(leadiq_requests_total[5m])) > 0.05
+        for: 2m
+        labels: {severity: warning}
+        annotations:
+          summary: "More than 5% of LeadIQ API requests are failing"
+
+      - alert: SlowPredictions
+        # 95% of /predict calls should finish within 1 second
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(leadiq_request_latency_seconds_bucket{path="/predict"}[5m])) by (le)) > 1
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "p95 /predict latency is above 1 second"
+
+      - alert: TooManyColdLeads
+        # Possible prediction drift: over 80% of recent leads scored Cold
+        expr: |
+          sum(rate(leadiq_predictions_total{band="Cold"}[30m]))
+            / sum(rate(leadiq_predictions_total[30m])) > 0.8
+        for: 15m
+        labels: {severity: info}
+        annotations:
+          summary: "Over 80% of leads are Cold; check the drift report"
