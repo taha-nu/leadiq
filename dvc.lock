@@ -72,6 +72,10 @@ stages:
   train:
     cmd: python src/train.py
     deps:
+    - path: data/feedback/feedback.csv
+      hash: md5
+      md5: d991ea269a1319dcfd627ea387d1dd4c
+      size: 379
     - path: data/processed/train.csv
       hash: md5
       md5: 38d6f549e6796d5d952449f4671db600
@@ -82,8 +86,8 @@ stages:
       size: 1333
     - path: src/train.py
       hash: md5
-      md5: f4846cb6cc16fd6f963970b8651b7e93
-      size: 5693
+      md5: d6cc25d640cb0a0bccf486915d6b6cd3
+      size: 6122
     params:
       params.yaml:
         base.random_state: 42
@@ -117,7 +121,7 @@ stages:
       size: 243200
     - path: reports/train.json
       hash: md5
-      md5: a34d27ca09560153f3e82bfcf5d3c2c0
+      md5: 506472646e82c2a6ae180e34585737c2
       size: 3167
   evaluate:
     cmd: python src/evaluate.py
@@ -132,7 +136,7 @@ stages:
       size: 243200
     - path: reports/train.json
       hash: md5
-      md5: a34d27ca09560153f3e82bfcf5d3c2c0
+      md5: 506472646e82c2a6ae180e34585737c2
       size: 3167
     - path: src/evaluate.py
       hash: md5
@@ -169,10 +173,27 @@ stages:
       size: 243200
     - path: src/register.py
       hash: md5
-      md5: 2c7b6176f5c7ec2660882e8712696e92
-      size: 2315
+      md5: 8f9d79ca5c2a5b7a0e12368c8b58fd95
+      size: 2729
     outs:
     - path: reports/registry.json
       hash: md5
-      md5: abc33fba70b429d37583e81b33b20578
-      size: 318
+      md5: 71002a513cbf4e24cd098b8d9ad7927a
+      size: 327
+  export:
+    cmd: python src/export_model.py
+    deps:
+    - path: reports/registry.json
+      hash: md5
+      md5: 71002a513cbf4e24cd098b8d9ad7927a
+      size: 327
+    - path: src/export_model.py
+      hash: md5
+      md5: c7bb75d41c1a79fb5a4599345c12cc10
+      size: 1618
+    outs:
+    - path: models/serving
+      hash: md5
+      md5: 5b5679022f7ed1334b94fd607d92acf1.dir
+      size: 243395
+      nfiles: 2

@@ -1,3 +1,4 @@
+# Training pipeline
 pandas==3.0.5
 numpy==2.5.3
 scikit-learn==1.9.1
@@ -10,4 +11,13 @@ shap==0.54.1
 skops
 matplotlib
 pyyaml
+
+# Serving, dashboard, monitoring and orchestration
+-r requirements-api.txt
+streamlit==1.67.0
+evidently==0.7.23
+prefect==3.9.3
+
+# Tests
 pytest
+httpx==0.28.1

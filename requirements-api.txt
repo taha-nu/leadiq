@@ -1,0 +1,14 @@
+# Only what the scoring API container needs.
+# Model libraries must match the versions the model was trained with.
+pandas==3.0.5
+numpy==2.5.3
+scikit-learn==1.9.1
+xgboost==3.4.1
+lightgbm==4.7.0
+shap==0.54.1
+joblib==1.6.0
+fastapi==0.150.0
+uvicorn==0.54.0
+prometheus-client==0.26.0
+anthropic==2.8.0
+requests==2.34.2
