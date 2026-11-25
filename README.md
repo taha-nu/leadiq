@@ -12,6 +12,12 @@ LeadIQ predicts which sales leads are likely to convert and sorts them into **Ho
      └──────── Prefect retrain flow ◄── rep feedback + Evidently drift ◄──── Prometheus / Grafana / CloudWatch
 ```
 
+## Cloud architecture
+
+![LeadIQ cloud architecture](docs/architecture.png)
+
+Generated from code: `python docs/architecture.py` (needs Graphviz and `pip install diagrams`).
+
 ## Results
 
 | Model (best of each family) | CV ROC-AUC | CV F1 |
