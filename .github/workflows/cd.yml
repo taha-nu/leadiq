@@ -6,8 +6,6 @@ name: CD
 #     `model-latest` release (src/publish_model.py).
 #  2. The AWS EC2 server pulls the new images by itself within 2 minutes
 #     (deploy/update.sh), so GitHub needs no AWS credentials.
-#  3. Updates the always-online Hugging Face Spaces (needs secret HF_TOKEN
-#     and variable HF_USERNAME).
 on:
   workflow_run:
     workflows: [CI]
@@ -48,19 +46,3 @@ jobs:
               -t $image:${{ github.sha }} -t $image:latest .
             docker push --all-tags $image
           done
-
-  huggingface:
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    env:
-      HF_TOKEN: ${{ secrets.HF_TOKEN }}
-    steps:
-      - uses: actions/checkout@v5
-      - name: Update Hugging Face Spaces
-        if: env.HF_TOKEN != ''
-        env:
-          HF_USERNAME: ${{ vars.HF_USERNAME }}
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          pip install huggingface_hub
-          python deploy/hf_spaces.py

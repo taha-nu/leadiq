@@ -96,7 +96,6 @@ Each machine keeps its own MLflow store (`mlflow.db`). After `dvc pull`, run `dv
 
 1. Downloads the served models from the GitHub release `model-latest`.
 2. Builds the API and dashboard images and pushes them to GitHub Container Registry (`ghcr.io/taha-nu/leadiq-api`, `leadiq-dashboard`).
-3. Updates the Hugging Face Spaces.
 
 The AWS server picks up the new images by itself within 2 minutes (`deploy/update.sh` runs from cron), so GitHub needs no AWS credentials.
 
@@ -122,7 +121,17 @@ dvc remote add -d -f storage $(terraform output -raw dvc_remote) && dvc push
 
 `terraform output` prints the dashboard, API docs and Grafana links.
 
-**Hugging Face Spaces (always online).** `deploy/hf_spaces.py` runs the same images as two Docker Spaces, `leadiq-api` and `leadiq-dashboard`. This needs a GitHub secret `HF_TOKEN` (a Hugging Face write token) and a variable `HF_USERNAME`.
+## Live demo on AWS
+
+The Sandbox deletes everything when a lab session ends, so the live links exist only during a session. Each session gets a new public IP, which `terraform output` prints. These screenshots are from the deployment on 27 Nov 2026 (EC2 at 3.222.188.159).
+
+Dashboard on AWS, scoring a lead with its top reasons:
+
+![Dashboard on AWS](docs/aws_dashboard.jpg)
+
+Grafana on AWS (request rate, p95 latency, error rate, firing alerts, leads by band, champion vs canary):
+
+![Grafana on AWS](docs/aws_grafana.jpg)
 
 ## Screenshots
 
@@ -146,7 +155,7 @@ Top drivers of conversion (SHAP):
 ├── dashboard/           # Streamlit dashboard
 ├── flows/               # Prefect retraining flow
 ├── docker/              # Dockerfiles; docker-compose.yml (local) and docker-compose.prod.yml (AWS) at the root
-├── deploy/              # server auto-update script, Hugging Face Spaces deploy
+├── deploy/              # server auto-update script (pull-based deployment)
 ├── monitoring/          # Prometheus config + alerts, Grafana dashboard
 ├── infra/terraform/     # AWS infrastructure (EC2, S3, CloudWatch, SNS)
 ├── tests/               # pytest (cleaning logic + API)

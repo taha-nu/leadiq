@@ -56,10 +56,6 @@ with Diagram("LeadIQ cloud architecture", filename="docs/architecture", show=Fal
             prometheus = Prometheus("Prometheus\n+ alert rules")
             grafana = Grafana("Grafana :3000")
 
-    with Cluster("Hugging Face Spaces (always online)"):
-        hf_api = Fastapi("leadiq-api")
-        hf_dash = Python("leadiq-dashboard")
-
     llm = Client("LLM API\n(follow-up text)")
 
     # Training and model publishing
@@ -74,9 +70,6 @@ with Diagram("LeadIQ cloud architecture", filename="docs/architecture", show=Fal
     release >> Edge(label="models") >> cd
     cd >> Edge(label="push images") >> ghcr
     ghcr >> Edge(label="docker pull") >> ec2
-    cd >> Edge(label="update Spaces") >> hf_api
-    cd >> hf_dash
-    ghcr >> Edge(label="FROM image", style="dashed") >> hf_api
 
     # Serving on AWS
     role >> Edge(style="dashed") >> ec2
@@ -87,4 +80,3 @@ with Diagram("LeadIQ cloud architecture", filename="docs/architecture", show=Fal
     prometheus >> Edge(label="scrape /metrics") >> api
     grafana >> prometheus
     ec2 >> Edge(label="metrics") >> alarm >> sns
-    hf_dash >> hf_api
