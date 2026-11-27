@@ -25,17 +25,27 @@ provider "aws" {
 data "aws_caller_identity" "me" {}
 
 # ---------------------------------------------------------------- S3 (DVC remote)
-resource "aws_s3_bucket" "dvc" {
-  bucket        = "${var.project}-dvc-${data.aws_caller_identity.me.account_id}" # names are global
-  force_destroy = true
-}
-
-resource "aws_s3_bucket_public_access_block" "dvc" {
-  bucket                  = aws_s3_bucket.dvc.id
-  block_public_acls       = true
-  block_public_policy     = true
-  ignore_public_acls      = true
-  restrict_public_buckets = true
+# Created through a small CloudFormation stack: the Sandbox denies the
+# object-lock read that Terraform's aws_s3_bucket always does.
+resource "aws_cloudformation_stack" "dvc_bucket" {
+  name = "${var.project}-dvc-bucket"
+  template_body = jsonencode({
+    Resources = {
+      Bucket = {
+        Type = "AWS::S3::Bucket"
+        Properties = {
+          BucketName = "${var.project}-dvc-${data.aws_caller_identity.me.account_id}" # names are global
+          PublicAccessBlockConfiguration = {
+            BlockPublicAcls       = true
+            BlockPublicPolicy     = true
+            IgnorePublicAcls      = true
+            RestrictPublicBuckets = true
+          }
+        }
+      }
+    }
+    Outputs = { BucketName = { Value = { Ref = "Bucket" } } }
+  })
 }
 
 # ---------------------------------------------------------------- Networking

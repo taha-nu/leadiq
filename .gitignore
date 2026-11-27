@@ -24,3 +24,6 @@ infra/terraform/.terraform/
 
 # Secrets
 .env
+
+# Terraform plan files
+infra/terraform/tfplan

@@ -12,5 +12,5 @@ output "grafana_url" {
 
 output "dvc_remote" {
   description = "Use with: dvc remote add -d -f storage <value>"
-  value       = "s3://${aws_s3_bucket.dvc.bucket}/dvc"
+  value       = "s3://${aws_cloudformation_stack.dvc_bucket.outputs["BucketName"]}/dvc"
 }
