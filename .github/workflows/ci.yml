@@ -24,11 +24,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      # The API image is built in CD, where the trained models are pulled from S3
+      # The API image is built in CD, which downloads the served models from the release
       - name: Build dashboard image
         run: docker build -f docker/dashboard.Dockerfile -t leadiq-dashboard:ci .
       - name: Check docker-compose file
-        run: docker compose config --quiet
+        run: |
+          docker compose config --quiet
+          docker compose -f docker-compose.prod.yml config --quiet
 
   terraform:
     runs-on: ubuntu-latest

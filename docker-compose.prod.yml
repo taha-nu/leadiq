@@ -1,0 +1,43 @@
+# Production stack on the AWS EC2 server. Same services as docker-compose.yml,
+# but using the images CD pushed to GitHub Container Registry (no local build).
+#   docker compose -f docker-compose.prod.yml up -d
+services:
+  api:
+    image: ghcr.io/taha-nu/leadiq-api:latest
+    restart: unless-stopped
+    ports: ["8000:8000"]
+    environment:
+      CANARY_WEIGHT: "0.1"
+    volumes:
+      - app-data:/app/data
+
+  dashboard:
+    image: ghcr.io/taha-nu/leadiq-dashboard:latest
+    restart: unless-stopped
+    ports: ["8501:8501"]
+    environment:
+      API_URL: http://api:8000
+    depends_on: [api]
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    restart: unless-stopped
+    ports: ["9090:9090"]
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+
+  grafana:
+    image: grafana/grafana:12.1.1
+    restart: unless-stopped
+    ports: ["3000:3000"]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_AUTH_ANONYMOUS_ENABLED: "true"      # visitors can view dashboards without logging in
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+
+volumes:
+  app-data:

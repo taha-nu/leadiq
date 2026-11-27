@@ -1,9 +1,13 @@
 name: CD
 
-# Runs after CI passes on main (or by hand). Builds both images, pushes them
-# to ECR and rolls out the ECS service.
-# Needs: repo variable DEPLOY_ENABLED=true and secret AWS_DEPLOY_ROLE_ARN
-# (from `terraform output github_deploy_role_arn`).
+# Runs after CI passes on main (or by hand).
+#  1. Builds the API and dashboard images and pushes them to GitHub Container
+#     Registry (ghcr.io). The API image includes the served models from the
+#     `model-latest` release (src/publish_model.py).
+#  2. The AWS EC2 server pulls the new images by itself within 2 minutes
+#     (deploy/update.sh), so GitHub needs no AWS credentials.
+#  3. Updates the always-online Hugging Face Spaces (needs secret HF_TOKEN
+#     and variable HF_USERNAME).
 on:
   workflow_run:
     workflows: [CI]
@@ -11,49 +15,52 @@ on:
     branches: [main]
   workflow_dispatch:
 
-permissions:
-  id-token: write   # lets GitHub log in to AWS with OIDC (no stored keys)
-  contents: read
-
-env:
-  AWS_REGION: us-east-1
-  PROJECT: leadiq
-
 jobs:
-  deploy:
-    if: vars.DEPLOY_ENABLED == 'true' && (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
+  build-and-push:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write   # push to ghcr.io
     steps:
       - uses: actions/checkout@v5
 
-      - uses: aws-actions/configure-aws-credentials@v5
-        with:
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-      - name: Pull the exported models from the DVC remote (S3)
+      - name: Download the served models
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          pip install "dvc[s3]==3.67.1"
-          dvc pull export
+          gh release download model-latest --pattern serving.tar.gz --dir models
+          tar -xzf models/serving.tar.gz -C models
+          cat models/serving/serving.json
 
-      - id: ecr
-        uses: aws-actions/amazon-ecr-login@v2
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
 
       - name: Build and push images
-        env:
-          REGISTRY: ${{ steps.ecr.outputs.registry }}
-          TAG: ${{ github.sha }}
         run: |
           for svc in api dashboard; do
-            docker build -f docker/$svc.Dockerfile -t $REGISTRY/$PROJECT-$svc:$TAG -t $REGISTRY/$PROJECT-$svc:latest .
-            docker push --all-tags $REGISTRY/$PROJECT-$svc
+            image=ghcr.io/taha-nu/leadiq-$svc
+            docker build -f docker/$svc.Dockerfile \
+              --label org.opencontainers.image.source=https://github.com/${{ github.repository }} \
+              -t $image:${{ github.sha }} -t $image:latest .
+            docker push --all-tags $image
           done
 
-      - name: Deploy to ECS
+  huggingface:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Update Hugging Face Spaces
+        if: env.HF_TOKEN != ''
+        env:
+          HF_USERNAME: ${{ vars.HF_USERNAME }}
+          IMAGE_TAG: ${{ github.sha }}
         run: |
-          aws ecs update-service --cluster $PROJECT --service $PROJECT --force-new-deployment > /dev/null
-          aws ecs wait services-stable --cluster $PROJECT --services $PROJECT
-          echo "Deployed ${{ github.sha }}"
+          pip install huggingface_hub
+          python deploy/hf_spaces.py

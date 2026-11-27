@@ -4,14 +4,15 @@ Needs Graphviz installed and `pip install diagrams`. Run from the repo root:
     python docs/architecture.py
 """
 from diagrams import Cluster, Diagram, Edge
-from diagrams.aws.compute import EC2ContainerRegistry, Fargate
+from diagrams.aws.compute import EC2
 from diagrams.aws.integration import SimpleNotificationServiceSns
-from diagrams.aws.management import CloudwatchAlarm, CloudwatchLogs
+from diagrams.aws.management import CloudwatchAlarm
 from diagrams.aws.security import IdentityAndAccessManagementIamRole
 from diagrams.aws.storage import SimpleStorageServiceS3Bucket
 from diagrams.generic.database import SQL
 from diagrams.onprem.ci import GithubActions
 from diagrams.onprem.client import Client, User, Users
+from diagrams.onprem.container import Docker
 from diagrams.onprem.mlops import Mlflow
 from diagrams.onprem.monitoring import Grafana, Prometheus
 from diagrams.onprem.vcs import Github
@@ -29,57 +30,61 @@ with Diagram("LeadIQ cloud architecture", filename="docs/architecture", show=Fal
     sales = Users("Sales reps\n(browser)")
     client = Client("API client")
 
-    with Cluster("GitHub"):
-        repo = Github("leadiq repo")
-        ci = GithubActions("CI\npytest, docker build,\nterraform validate")
-        cd = GithubActions("CD\nbuild + push + deploy")
-
-    with Cluster("Training + monitoring (docker compose / dev machine)"):
+    with Cluster("Dev machine"):
         pipeline = Python("DVC pipeline\nvalidate > preprocess > train\n> evaluate > register > export")
         mlflow = Mlflow("MLflow\nruns + model registry")
         prefect = Python("Prefect\nretrain flow")
-        prometheus = Prometheus("Prometheus\n+ alert rules")
-        grafana = Grafana("Grafana")
 
-    with Cluster("AWS (us-east-1), built with Terraform"):
-        s3 = SimpleStorageServiceS3Bucket("S3\nDVC remote\n(data + models)")
-        ecr = EC2ContainerRegistry("ECR\nleadiq-api\nleadiq-dashboard")
-        role = IdentityAndAccessManagementIamRole("IAM OIDC role\n(GitHub deploy)")
+    with Cluster("GitHub"):
+        repo = Github("leadiq repo")
+        release = Github("Release\nmodel-latest\n(served models)")
+        ci = GithubActions("CI\npytest, docker build,\nterraform validate")
+        cd = GithubActions("CD\nbuild + push images")
+        ghcr = Docker("GHCR\nleadiq-api\nleadiq-dashboard")
 
-        with Cluster("ECS Fargate service (one task)"):
-            fargate = Fargate("Fargate task")
+    with Cluster("AWS Academy Sandbox (us-east-1), built with Terraform"):
+        s3 = SimpleStorageServiceS3Bucket("S3\nDVC remote")
+        role = IdentityAndAccessManagementIamRole("LabInstanceProfile")
+        alarm = CloudwatchAlarm("CloudWatch alarms\nCPU + status check")
+        sns = SimpleNotificationServiceSns("SNS\nemail alert")
+
+        with Cluster("EC2 t3.small: docker compose"):
+            ec2 = EC2("EC2 server\ncron: pull new\nimages every 2 min")
             api = Fastapi("Scoring API :8000\n/predict /feedback\n/metrics")
             dashboard = Python("Streamlit\ndashboard :8501")
             db = SQL("SQLite\npredictions +\nfeedback")
+            prometheus = Prometheus("Prometheus\n+ alert rules")
+            grafana = Grafana("Grafana :3000")
 
-        logs = CloudwatchLogs("CloudWatch Logs")
-        alarm = CloudwatchAlarm("CloudWatch\nCPU alarm")
-        sns = SimpleNotificationServiceSns("SNS\nemail alert")
+    with Cluster("Hugging Face Spaces (always online)"):
+        hf_api = Fastapi("leadiq-api")
+        hf_dash = Python("leadiq-dashboard")
 
     llm = Client("LLM API\n(follow-up text)")
 
+    # Training and model publishing
+    pipeline >> Edge(label="params, metrics,\nmodels") >> mlflow
+    pipeline >> Edge(label="dvc push") >> s3
+    pipeline >> Edge(label="publish_model.py") >> release
+    prefect >> Edge(label="dvc repro") >> pipeline
+    prefect >> Edge(label="GET /feedback/export", style="dashed") >> api
+
     # CI/CD
     developer >> Edge(label="git push") >> repo >> ci >> Edge(label="on success") >> cd
-    cd >> Edge(label="OIDC login") >> role
-    cd >> Edge(label="dvc pull models") >> s3
-    cd >> Edge(label="push images") >> ecr
-    cd >> Edge(label="update service") >> fargate
-    ecr >> Edge(label="pull images", style="dashed") >> fargate
+    release >> Edge(label="models") >> cd
+    cd >> Edge(label="push images") >> ghcr
+    ghcr >> Edge(label="docker pull") >> ec2
+    cd >> Edge(label="update Spaces") >> hf_api
+    cd >> hf_dash
+    ghcr >> Edge(label="FROM image", style="dashed") >> hf_api
 
-    # Serving
-    sales >> dashboard >> Edge(label="localhost:8000") >> api
+    # Serving on AWS
+    role >> Edge(style="dashed") >> ec2
+    sales >> dashboard >> Edge(label="api:8000") >> api
     client >> Edge(label="POST /predict") >> api
     api >> db
     api >> Edge(label="hot leads", style="dashed") >> llm
-    fargate >> Edge(label="logs") >> logs
-    fargate >> Edge(label="CPU") >> alarm >> sns
-
-    # Training loop
-    pipeline >> Edge(label="params, metrics,\nmodels") >> mlflow
-    pipeline >> Edge(label="dvc push") >> s3
-    prefect >> Edge(label="GET /feedback/export") >> api
-    prefect >> Edge(label="dvc repro") >> pipeline
-
-    # Monitoring
-    prometheus >> Edge(label="scrape /metrics", style="dashed") >> api
+    prometheus >> Edge(label="scrape /metrics") >> api
     grafana >> prometheus
+    ec2 >> Edge(label="metrics") >> alarm >> sns
+    hf_dash >> hf_api

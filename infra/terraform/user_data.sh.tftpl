@@ -1,0 +1,22 @@
+#!/bin/bash
+# First boot of the LeadIQ server: install Docker, get the repo, start the stack.
+set -ex
+
+# 2 GB swap so the small instance has room for all four containers
+fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+
+dnf install -y docker git cronie
+systemctl enable --now docker crond
+
+# Docker Compose plugin
+mkdir -p /usr/local/lib/docker/cli-plugins
+curl -sSL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 \
+  -o /usr/local/lib/docker/cli-plugins/docker-compose
+chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+
+git clone ${repo_url} /opt/leadiq
+cd /opt/leadiq
+docker compose -f docker-compose.prod.yml up -d
+
+# Pull-based deployment: check for new images every 2 minutes
+echo "*/2 * * * * root /bin/bash /opt/leadiq/deploy/update.sh >> /var/log/leadiq-update.log 2>&1" > /etc/cron.d/leadiq

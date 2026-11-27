@@ -61,7 +61,7 @@ All settings live in `params.yaml`; changing one and running `dvc repro` reruns 
 - **Prometheus + Grafana** (`monitoring/`): request rate, p95 latency, error rate, leads by band, champion vs canary traffic, feedback rate. Alert rules: API down, error rate > 5%, p95 latency > 1 s, more than 80% Cold leads.
 - **Evidently** (`src/drift.py`): compares live leads (and predicted probabilities) with the training data and writes `reports/drift/`.
 - **Prefect** (`flows/retrain_flow.py`): pulls rep feedback from the API, runs the drift report, and if there are at least 50 new labelled leads or drift was found, versions the feedback with DVC and runs `dvc repro`. Scheduled weekly with `--serve`.
-- **CloudWatch**: container logs and a CPU alarm on AWS.
+- **CloudWatch**: CPU and status-check alarms on the AWS server, with SNS email alerts.
 
 ## How to run
 
@@ -90,21 +90,39 @@ python src/promote.py                        # finish a canary rollout
 
 Each machine keeps its own MLflow store (`mlflow.db`). After `dvc pull`, run `dvc repro -f` once to fill your local MLflow.
 
-## Deploying to AWS
+## Deployment
 
-Terraform in `infra/terraform` creates the S3 bucket (DVC remote), two ECR repositories, an ECS Fargate cluster and service (API and dashboard in one task), CloudWatch logs and alarm, and an OIDC role for GitHub Actions. It uses the default VPC with public IPs, with no load balancer or NAT gateway, to keep costs low.
+**CI/CD.** Every push to `main` runs CI: tests, Docker image build and Terraform checks. When CI passes, CD (`.github/workflows/cd.yml`):
+
+1. Downloads the served models from the GitHub release `model-latest`.
+2. Builds the API and dashboard images and pushes them to GitHub Container Registry (`ghcr.io/taha-nu/leadiq-api`, `leadiq-dashboard`).
+3. Updates the Hugging Face Spaces.
+
+The AWS server picks up the new images by itself within 2 minutes (`deploy/update.sh` runs from cron), so GitHub needs no AWS credentials.
+
+**New model → production.** After `dvc repro` (and `src/promote.py` for a canary), run `python src/publish_model.py`, then re-run CD (Actions → CD → Run workflow).
+
+**AWS (AWS Academy Sandbox).** The Sandbox allows EC2, S3, CloudWatch and SNS but not ECS/ECR, and it deletes everything when the lab session ends. Terraform in `infra/terraform` creates:
+
+- an EC2 `t3.small` server (Amazon Linux 2023, pre-made `LabInstanceProfile`) that installs Docker and runs `docker-compose.prod.yml`: API, dashboard, Prometheus and Grafana
+- a security group opening ports 8000, 8501 and 3000
+- an S3 bucket used as the DVC remote
+- CloudWatch alarms (CPU and status check) with SNS email alerts
+
+Each lab session:
 
 ```bash
-cd infra/terraform
-terraform init && terraform apply              # service starts stopped (desired_count = 0)
-dvc remote add -d storage <dvc_remote output> && dvc push
+# 1. AWS Academy → Sandbox → Start Lab → AWS Details → AWS CLI: paste into ~/.aws/credentials
+aws configure set region us-east-1
+# 2. Create everything (the app answers about 5 minutes later)
+cd infra/terraform && terraform init && terraform apply
+# 3. Optional: version data in S3
+dvc remote add -d -f storage $(terraform output -raw dvc_remote) && dvc push
 ```
 
-Then in GitHub: add secret `AWS_DEPLOY_ROLE_ARN` (the `github_deploy_role_arn` output) and repository variable `DEPLOY_ENABLED=true`.
+`terraform output` prints the dashboard, API docs and Grafana links.
 
-1. **Start the app:** run `terraform apply -var desired_count=1`.
-2. **Deploy:** every push to `main` that passes CI runs `.github/workflows/cd.yml`. It pulls `models/serving` from S3, builds and pushes both images, and rolls out ECS.
-3. **Stop it:** run `terraform apply -var desired_count=0` (or `terraform destroy`) when you're done, so Fargate stops charging.
+**Hugging Face Spaces (always online).** `deploy/hf_spaces.py` runs the same images as two Docker Spaces, `leadiq-api` and `leadiq-dashboard`. This needs a GitHub secret `HF_TOKEN` (a Hugging Face write token) and a variable `HF_USERNAME`.
 
 ## Screenshots
 
@@ -127,9 +145,10 @@ Top drivers of conversion (SHAP):
 ├── app/                 # FastAPI scoring API
 ├── dashboard/           # Streamlit dashboard
 ├── flows/               # Prefect retraining flow
-├── docker/              # Dockerfiles; docker-compose.yml at the root
+├── docker/              # Dockerfiles; docker-compose.yml (local) and docker-compose.prod.yml (AWS) at the root
+├── deploy/              # server auto-update script, Hugging Face Spaces deploy
 ├── monitoring/          # Prometheus config + alerts, Grafana dashboard
-├── infra/terraform/     # AWS infrastructure
+├── infra/terraform/     # AWS infrastructure (EC2, S3, CloudWatch, SNS)
 ├── tests/               # pytest (cleaning logic + API)
 ├── .github/workflows/   # CI (tests, image build, terraform checks) and CD (deploy)
 ├── dvc.yaml, dvc.lock, params.yaml
